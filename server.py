@@ -59,7 +59,7 @@ def main():
 	app.router.add_get('/', handler)
 	app.router.add_get('/{service}/{action}', changeDaemon)
 	app.router.add_get('/cbox', changedCbox)
-	web.run_app(app, host='localhost', port=10000)
+	web.run_app(app, host='*', port=10000)
 
 
 async def handler(request):
