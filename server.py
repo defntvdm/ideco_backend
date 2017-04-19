@@ -17,7 +17,13 @@ HTML = '''
 		<title>%s</title>
 		<script type="text/javascript">
 			function changeDaemon(service, action) {
-				document.location.href = '/'+service+'/'+action+'/'+cbox.checked;
+				document.location.href = '/'+service+'/'+action;
+			}
+
+			function changedCbox() {
+				var xhr = new XMLHttpRequest();
+				xhr.open('GET', '/cbox', true);
+				xhr.send();
 			}
 			%sdocument.location.href = '/';
 		</script>
@@ -51,27 +57,26 @@ def main():
 	loop = get_event_loop()
 	app = web.Application(loop=loop)
 	app.router.add_get('/', handler)
-	app.router.add_get('/{service}/{action}/{flag}', changeDaemon)
+	app.router.add_get('/{service}/{action}', changeDaemon)
+	app.router.add_get('/cbox', changedCbox)
 	web.run_app(app, host='localhost', port=10000)
+
 
 async def handler(request):
 	html = HTML % ('Main', '//', await generate_table())
-	resp = web.Response(
-			text=html,
-			content_type='text/html',
-		)
-	return resp
+	return web.Response(
+						text=html,
+						content_type='text/html'
+						)
 
 async def changeDaemon(request):
-	global FLAG
 	action = request.match_info['action']
 	service = request.match_info['service']
-	FLAG = 1 if request.match_info['flag'] == 'true' else 0
 	if not (action in ACTIONS and service in SERVICES.keys()):
 		return web.Response(
-			text='Ну и зачем баловаться?',
-			content_type='text/html'
-		)
+							text='Ну и зачем баловаться?',
+							content_type='text/html'
+							)
 	popen('sudo service ' + service + ' ' + action)
 
 	if action == 'start' or action == 'restart':
@@ -84,11 +89,17 @@ async def changeDaemon(request):
 			content_type='text/html'
 		)
 
+async def changedCbox(request):
+	global FLAG
+	FLAG = not FLAG
+	return web.Response()
+
 async def generate_table():
 	table = ''
 	services = list(SERVICES.keys())
 	services.sort()
-	table += '<table><input type="checkbox" id="cbox"%s>' % (' checked' if FLAG else '')
+	table += '<table><label><input type="checkbox" onchange="changedCbox()" '\
+			'id="cbox"%s>Подсвечивать</label>' % (' checked' if FLAG else '')
 	for serv in services:
 		table += '''<tr class="{1}">
 					<td>{0}</td>
