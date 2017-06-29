@@ -5,6 +5,7 @@ from asyncio import get_event_loop
 from os import popen
 from os.path import exists
 import json
+import re
 
 ACTIONS = ['start', 'stop', 'restart']
 SERVICES = {}
@@ -49,11 +50,11 @@ HTML = '''
 '''
 
 def main():
-	data = popen('sudo service --status-all')
-	line = data.readline()
-	while line:
-		SERVICES[line[8:-1]] = True if line[3] == '+' else False
-		line = data.readline()
+	data = popen('sudo systemctl status *.service').read()
+	services = re.findall(r'● (.*)\.service', data)
+	status = re.findall(r'Active: active \((.*)\)', data)
+	for i in range(len(services)):
+		SERVICES[services[i]] = True if status[i] == 'running' else False
 	loop = get_event_loop()
 	app = web.Application(loop=loop)
 	app.router.add_get('/', handler)
@@ -77,7 +78,7 @@ async def changeDaemon(request):
 							text='Ну и зачем баловаться?',
 							content_type='text/html'
 							)
-	popen('sudo service ' + service + ' ' + action)
+	popen(f'sudo systemctl {action} {service}')
 
 	if action == 'start' or action == 'restart':
 		SERVICES[service] = True
